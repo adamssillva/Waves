@@ -17,17 +17,14 @@ import com.wavesplatform.transaction.assets.exchange.Order.Id
 class ActiveOrdersIndex(address: Address, maxElements: Int) {
   def add(rw: RW, pair: AssetPair, id: Id): Unit = {
     val newestIdx        = rw.get(newestIdxKey)
-    val updatedNewestIdx = newestIdx.getOrElse(Int.MinValue) - 1
+    val updatedNewestIdx = newestIdx.fold(Int.MaxValue)(_ - 1)
 
     // A new order
     rw.put(nodeKey(updatedNewestIdx), Node((pair, id), None))
     rw.put(orderIdxKey(id), Some(updatedNewestIdx))
 
     // A previous order in the index
-    newestIdx.foreach { idx =>
-      val n = rw.get(nodeKey(idx))
-      rw.put(nodeKey(idx), n.copy(newerIdx = Some(updatedNewestIdx)))
-    }
+    newestIdx.foreach(idx => rw.update(nodeKey(idx))(_.copy(newerIdx = Some(updatedNewestIdx))))
 
     rw.put(newestIdxKey, Some(updatedNewestIdx))
     rw.update(sizeKey) { orig =>
@@ -40,23 +37,19 @@ class ActiveOrdersIndex(address: Address, maxElements: Int) {
     val nk   = nodeKey(idx)
     val node = rw.get(nk)
 
-    val olderNode = findOlder(rw, idx)
-    olderNode.foreach {
-      case (olderIdx, n) => rw.put(nodeKey(olderIdx), n.copy(newerIdx = node.newerIdx))
-    }
-
-    if (node.newerIdx.isEmpty) {
-      findOlder(rw, idx) match {
-        case None => rw.delete(newestIdxKey)
-        case x    => rw.put(newestIdxKey, x.map(_._1))
-      }
-    }
-
     rw.delete(nk)
     rw.delete(orderIdxKey(id))
-    rw.get(sizeKey).getOrElse(0) - 1 match {
-      case x if x <= 0 => rw.delete(sizeKey)
-      case x           => rw.put(sizeKey, Some(x))
+
+    val olderNode = findOlder(rw, idx)
+    olderNode.foreach { case (olderIdx, n) => rw.put(nodeKey(olderIdx), n.copy(newerIdx = node.newerIdx)) }
+
+    if (node.newerIdx.isEmpty) olderNode match {
+      case None =>
+        rw.delete(newestIdxKey)
+        rw.delete(sizeKey)
+      case x =>
+        rw.put(newestIdxKey, x.map(_._1))
+        rw.put(sizeKey, rw.get(sizeKey).map(_ - 1))
     }
   }
 
