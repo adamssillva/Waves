@@ -62,7 +62,6 @@ object MatcherKeys {
 
   val ActiveOrdersPrefix: Short            = 4
   val ActiveOrdersPrefixBytes: Array[Byte] = Shorts.toByteArray(ActiveOrdersPrefix)
-
   def activeOrders(address: Address, seqNr: Int): Key[ActiveOrdersIndex.Node] =
     Key(bytes(ActiveOrdersPrefix, address.bytes.arr ++ Ints.toByteArray(seqNr)), ActiveOrdersIndex.Node.read, ActiveOrdersIndex.Node.write)
 
@@ -83,14 +82,19 @@ object MatcherKeys {
     Key.opt(bytes(12, address.bytes.arr ++ orderId.arr), Ints.fromByteArray, Ints.toByteArray)
 
   def finalizedCommonSeqNr(address: Address): Key[Option[Int]] = Key.opt(bytes(13, address.bytes.arr), Ints.fromByteArray, Ints.toByteArray)
+
+  val FinalizedCommonPrefix: Short            = 14
+  val FinalizedCommonPrefixBytes: Array[Byte] = Shorts.toByteArray(FinalizedCommonPrefix)
   def finalizedCommon(address: Address, seqNr: Int): Key[Option[Order.Id]] =
-    Key.opt(bytes(14, address.bytes.arr ++ Ints.toByteArray(seqNr)), ByteStr(_), _.arr)
+    Key.opt(bytes(FinalizedCommonPrefix, address.bytes.arr ++ Ints.toByteArray(seqNr)), ByteStr(_), _.arr)
 
   def finalizedPairSeqNr(address: Address, pair: AssetPair): Key[Option[Int]] =
     Key.opt(bytes(15, address.bytes.arr ++ pair.bytes), Ints.fromByteArray, Ints.toByteArray)
 
+  val FinalizedPairPrefix: Short            = 16
+  val FinalizedPairPrefixBytes: Array[Byte] = Shorts.toByteArray(FinalizedPairPrefix)
   def finalizedPair(address: Address, pair: AssetPair, seqNr: Int): Key[Option[Order.Id]] =
-    Key.opt(bytes(16, address.bytes.arr ++ pair.bytes ++ Ints.toByteArray(seqNr)), ByteStr(_), _.arr)
+    Key.opt(bytes(FinalizedPairPrefix, address.bytes.arr ++ pair.bytes ++ Ints.toByteArray(seqNr)), ByteStr(_), _.arr)
 
   def lastOrderTimestamp(address: Address): Key[Option[Long]] = Key.opt(bytes(17, address.bytes.arr), Longs.fromByteArray, Longs.toByteArray)
 }

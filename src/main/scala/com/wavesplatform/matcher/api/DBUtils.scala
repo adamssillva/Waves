@@ -83,7 +83,7 @@ object DBUtils {
     val finalizedIndex = if (activeOnly) ClosableIterable.empty else getFinalizedIndex
     try {
       // We show all active orders even they count exceeds the pair limit
-      val active = activeIndex.iterator.take(maxOrders).map(get).collect { case (Some(o), Some(oi)) => (o, oi) }.toIndexedSeq
+      val active = activeIndex.iterator.map(get).collect { case (Some(o), Some(oi)) => (o, oi) }.toIndexedSeq
 
       val finalized = finalizedIndex.iterator
         .map(get)

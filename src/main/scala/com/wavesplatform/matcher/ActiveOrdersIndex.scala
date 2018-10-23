@@ -63,18 +63,15 @@ class ActiveOrdersIndex(address: Address, maxElements: Int) {
   def size(ro: ReadOnlyDB): Int = ro.get(sizeKey).getOrElse(0)
 
   def iterator(ro: ReadOnlyDB): ClosableIterable[NodeContent] =
-    ro.get(newestIdxKey).fold(ClosableIterable.empty: ClosableIterable[NodeContent])(safeIterator(ro, _).map(_._2.elem))
+    ro.get(newestIdxKey).fold(ClosableIterable.empty: ClosableIterable[NodeContent])(mkIterator(ro, _).map(_._2.elem))
 
   private def findOlder(ro: ReadOnlyDB, thanIdx: Int): Option[(Index, Node)] = {
-    val iter = safeIterator(ro, latestIdx = thanIdx)
-    try {
-      iter.iterator.drop(1).find(_ => true)
-    } finally {
-      iter.close()
-    }
+    val iter = mkIterator(ro, latestIdx = thanIdx)
+    try iter.iterator.drop(1).find(_ => true)
+    finally iter.close()
   }
 
-  private def safeIterator(ro: ReadOnlyDB, latestIdx: Int): ClosableIterable[(Index, Node)] = new ClosableIterable[(Index, Node)] {
+  private def mkIterator(ro: ReadOnlyDB, latestIdx: Int): ClosableIterable[(Index, Node)] = new ClosableIterable[(Index, Node)] {
     private val prefix   = MatcherKeys.ActiveOrdersPrefixBytes ++ address.bytes.arr
     private val internal = ro.iterator
     internal.seek(nodeKey(latestIdx).keyBytes)
@@ -96,7 +93,6 @@ object ActiveOrdersIndex {
   type NodeContent = (AssetPair, Id)
   type Index       = Int
 
-  // TODO: We could read the previous and next records by iterator, so newerIdx is not required
   case class Node(elem: (AssetPair, Id), newerIdx: Option[Index])
   object Node {
     def read(xs: Array[Byte]): Node = {
@@ -107,7 +103,7 @@ object ActiveOrdersIndex {
     private def indexFromBytes(bb: ByteBuffer): Option[Index] = bb.get match {
       case 0 => None
       case 1 =>
-        val bytes = new Array[Byte](4)
+        val bytes = new Array[Byte](Ints.BYTES)
         bb.get(bytes)
         Some(Ints.fromByteArray(bytes))
     }
