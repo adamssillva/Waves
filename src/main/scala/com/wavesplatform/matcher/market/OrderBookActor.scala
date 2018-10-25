@@ -1,6 +1,6 @@
 package com.wavesplatform.matcher.market
 
-import akka.actor.{Props, Status}
+import akka.actor.{ActorRef, Props, Status}
 import akka.http.scaladsl.model._
 import akka.persistence._
 import com.wavesplatform.matcher.MatcherSettings
@@ -24,7 +24,8 @@ import play.api.libs.json._
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class OrderBookActor(assetPair: AssetPair,
+class OrderBookActor(parent: ActorRef,
+                     assetPair: AssetPair,
                      updateSnapshot: OrderBook => Unit,
                      updateMarketStatus: MarketStatus => Unit,
                      utx: UtxPool,
@@ -281,7 +282,13 @@ class OrderBookActor(assetPair: AssetPair,
       log.debug(s"Recovering $persistenceId from $snapshot")
   }
 
+  override def preStart(): Unit = {
+    parent ! Created(assetPair, self)
+    super.preStart()
+  }
+
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
+    parent ! Created(assetPair, self)
     log.warn(s"Restarting actor because of $message", reason)
     super.preRestart(reason, message)
   }
@@ -292,14 +299,15 @@ class OrderBookActor(assetPair: AssetPair,
 }
 
 object OrderBookActor {
-  def props(assetPair: AssetPair,
+  def props(parent: ActorRef,
+            assetPair: AssetPair,
             updateSnapshot: OrderBook => Unit,
             updateMarketStatus: MarketStatus => Unit,
             utx: UtxPool,
             allChannels: ChannelGroup,
             settings: MatcherSettings,
             createTransaction: OrderExecuted => Either[ValidationError, ExchangeTransaction]): Props =
-    Props(new OrderBookActor(assetPair, updateSnapshot, updateMarketStatus, utx, allChannels, settings, createTransaction))
+    Props(new OrderBookActor(parent, assetPair, updateSnapshot, updateMarketStatus, utx, allChannels, settings, createTransaction))
 
   def name(assetPair: AssetPair): String = assetPair.toString
 
@@ -336,4 +344,6 @@ object OrderBookActor {
   case object SaveSnapshot
 
   case class Snapshot(orderBook: OrderBook)
+
+  case class Created(pair: AssetPair, ref: ActorRef)
 }

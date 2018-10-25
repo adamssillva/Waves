@@ -3,7 +3,7 @@ package com.wavesplatform.matcher.market
 import java.util.concurrent.ConcurrentHashMap
 
 import akka.actor.{ActorRef, Props}
-import akka.testkit.ImplicitSender
+import akka.testkit.{ImplicitSender, TestProbe}
 import com.wavesplatform.NTPTime
 import com.wavesplatform.matcher.MatcherTestData
 import com.wavesplatform.matcher.api.{OrderAccepted, OrderCanceled}
@@ -15,6 +15,7 @@ import com.wavesplatform.settings.Constants
 import com.wavesplatform.state.{ByteStr, Diff}
 import com.wavesplatform.transaction._
 import com.wavesplatform.transaction.assets.exchange.{AssetPair, ExchangeTransaction, Order}
+import com.wavesplatform.utils.randomBytes
 import com.wavesplatform.utx.UtxPool
 import io.netty.channel.group.ChannelGroup
 import org.scalamock.scalatest.PathMockFactory
@@ -47,7 +48,9 @@ class OrderBookActorSpecification extends MatcherSpec("OrderBookActor") with NTP
     (utx.putIfNew _).when(*).onCall((_: Transaction) => Right((true, Diff.empty)))
     val allChannels = stub[ChannelGroup]
     val actor = system.actorOf(
-      Props(new OrderBookActor(pair, update(pair), p => Option(md.get(p)), utx, allChannels, matcherSettings, txFactory) with RestartableActor))
+      Props(
+        new OrderBookActor(TestProbe().ref, pair, update(pair), p => Option(md.get(p)), utx, allChannels, matcherSettings, txFactory)
+        with RestartableActor))
 
     f(pair, actor)
   }
@@ -264,7 +267,8 @@ class OrderBookActorSpecification extends MatcherSpec("OrderBookActor") with NTP
       }
       val allChannels = stub[ChannelGroup]
       val actor = system.actorOf(
-        Props(new OrderBookActor(pair, update(pair), m => md.put(pair, m), pool, allChannels, matcherSettings, txFactory) with RestartableActor))
+        Props(new OrderBookActor(TestProbe().ref, pair, update(pair), m => md.put(pair, m), pool, allChannels, matcherSettings, txFactory)
+        with RestartableActor))
 
       actor ! ord1
       expectMsg(OrderAccepted(ord1))
@@ -388,6 +392,31 @@ class OrderBookActorSpecification extends MatcherSpec("OrderBookActor") with NTP
       getOrders(actor) shouldEqual expectedOrders
       actor ! OrderCleanup
       getOrders(actor) shouldEqual expectedOrders
+    }
+
+    "notify parent after creation" in {
+      val parent = TestProbe()
+      val pair   = AssetPair(Some(ByteStr(randomBytes())), None)
+
+      val utx         = stub[UtxPool]
+      val allChannels = stub[ChannelGroup]
+      system.actorOf(
+        Props(new OrderBookActor(parent.ref, pair, _ => {}, _ => None, utx, allChannels, matcherSettings, txFactory) with RestartableActor))
+      parent.expectMsgType[Created]
+    }
+
+    "notify parent after restart" in {
+      val parent = TestProbe()
+      val pair   = AssetPair(Some(ByteStr(randomBytes())), None)
+
+      val utx         = stub[UtxPool]
+      val allChannels = stub[ChannelGroup]
+      val actor = system.actorOf(
+        Props(new OrderBookActor(parent.ref, pair, _ => {}, _ => None, utx, allChannels, matcherSettings, txFactory) with RestartableActor)
+      )
+
+      actor ! RestartActor
+      parent.expectMsgType[Created]
     }
   }
 }
