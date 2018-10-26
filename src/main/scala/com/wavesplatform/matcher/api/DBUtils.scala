@@ -18,10 +18,10 @@ object DBUtils {
     object active {
       val MaxElements = 200
 
-      def add(rw: RW, address: Address, pair: AssetPair, id: Order.Id): Unit                          = c(address).add(rw, pair, id)
-      def delete(rw: RW, address: Address, id: Order.Id): Unit                                        = c(address).delete(rw, id)
-      def size(ro: ReadOnlyDB, address: Address): Int                                                 = c(address).size(ro)
-      def iterator(ro: ReadOnlyDB, address: Address): ClosableIterable[ActiveOrdersIndex.NodeContent] = c(address).iterator(ro)
+      def add(rw: RW, address: Address, pair: AssetPair, id: Order.Id): Unit                   = c(address).add(rw, pair, id)
+      def delete(rw: RW, address: Address, id: Order.Id): Unit                                 = c(address).delete(rw, id)
+      def size(ro: ReadOnlyDB, address: Address): Int                                          = c(address).size(ro)
+      def iterator(ro: ReadOnlyDB, address: Address): ClosableIterable[ActiveOrdersIndex.Node] = c(address).iterator(ro)
 
       private def c(address: Address) = new ActiveOrdersIndex(address, MaxElements)
     }
@@ -55,7 +55,7 @@ object DBUtils {
         ro,
         maxOrders,
         activeOnly,
-        activeIndex = indexes.active.iterator(ro, address).collect { case (`pair`, id) => id },
+        activeIndex = indexes.active.iterator(ro, address).collect { case x if x.pair == `pair` => x.id },
         getFinalizedIndex = indexes.finalized.pair.iterator(ro, address, pair)
       )
     }
@@ -68,7 +68,7 @@ object DBUtils {
       ro,
       maxOrders,
       activeOnly,
-      activeIndex = indexes.active.iterator(ro, address).map { case (_, id) => id },
+      activeIndex = indexes.active.iterator(ro, address).map(_.id),
       getFinalizedIndex = indexes.finalized.common.iterator(ro, address)
     )
   }

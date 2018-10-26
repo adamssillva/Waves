@@ -172,7 +172,7 @@ case class MatcherApiRoute(assetPairBuilder: AssetPairBuilder,
         DBUtils.order(db, orderId) match {
           case None =>
             log.warn(s"Order $orderId was not found in history")
-            StatusCodes.NotFound
+            StatusCodes.NotFound -> LimitOrder.NotFound.json
           case Some(order) if senderPublicKey.exists(_ != order.senderPublicKey) =>
             StatusCodes.BadRequest -> Json.obj("message" -> "Public Key mismatch")
           case Some(order) =>

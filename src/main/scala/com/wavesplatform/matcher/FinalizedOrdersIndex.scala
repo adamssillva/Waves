@@ -1,8 +1,5 @@
 package com.wavesplatform.matcher
 
-import java.nio.ByteBuffer
-
-import cats.syntax.functor._
 import com.wavesplatform.account.Address
 import com.wavesplatform.database.{Key, RW, ReadOnlyDB}
 import com.wavesplatform.db.prefixIterator
@@ -47,16 +44,13 @@ abstract class FinalizedOrdersIndex(elementsLimit: Int, deleteOutdatedOrders: Bo
   }
 
   def iterator(ro: ReadOnlyDB): ClosableIterable[Id] =
-    ro.get(newestKey).fold(ClosableIterable.empty: ClosableIterable[Id])(mkIterator(ro, _).map(_._2))
+    ro.get(newestKey).fold(ClosableIterable.empty: ClosableIterable[Id])(mkIterator(ro, _))
 
-  private def mkIterator(ro: ReadOnlyDB, latestIdx: Int): ClosableIterable[(Index, Id)] = new ClosableIterable[(Index, Id)] {
+  private def mkIterator(ro: ReadOnlyDB, latestIdx: Int): ClosableIterable[Id] = new ClosableIterable[Id] {
     private val internal = ro.iterator
     internal.seek(itemKey(latestIdx).keyBytes)
 
-    override val iterator: Iterator[(Index, Id)] = prefixIterator(internal, prefix) { e =>
-      val idx = ByteBuffer.wrap(e.getKey).position(prefix.length).asInstanceOf[ByteBuffer].getInt()
-      (idx, ByteStr(e.getValue))
-    }
+    override val iterator: Iterator[Id] = prefixIterator(internal, prefix)(e => ByteStr(e.getValue))
 
     override def close(): Unit = internal.close()
   }
