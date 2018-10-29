@@ -4,6 +4,11 @@ import com.typesafe.config.Config
 import com.wavesplatform.it.api.LevelResponse
 import com.wavesplatform.it.api.SyncHttpApi._
 import com.wavesplatform.it.api.SyncMatcherHttpApi._
+import com.wavesplatform.it.sync.matcher.config.MatcherPriceAssetConfig._
+import com.wavesplatform.it.transactions.NodesFromDocker
+import com.wavesplatform.transaction.assets.exchange.OrderType
+import org.scalatest.{BeforeAndAfterAll, CancelAfterFailure, FreeSpec, Matchers}
+
 import com.wavesplatform.it.matcher.MatcherSuiteBase
 import com.wavesplatform.transaction.assets.exchange.OrderType
 import scala.concurrent.duration._
@@ -35,7 +40,7 @@ class RoundingIssuesTestSuite extends MatcherSuiteBase {
     matcherNode.waitOrderStatusAndAmount(wavesUsdPair, submittedId, "Filled", Some(filledAmount), 1.minute)
     matcherNode.waitOrderStatusAndAmount(wavesUsdPair, counterId, "PartiallyFilled", Some(filledAmount), 1.minute)
 
-    matcherNode.cancelOrder(aliceAcc, wavesUsdPair, Some(counterId))
+    matcherNode.cancelOrder(aliceAcc, wavesUsdPair, counterId)
     val tx = matcherNode.transactionsByOrder(counterId).head
 
     matcherNode.waitForTransaction(tx.id)
@@ -66,7 +71,7 @@ class RoundingIssuesTestSuite extends MatcherSuiteBase {
 
     withClue("Alice's reserved balance before cancel")(matcherNode.reservedBalance(aliceAcc) shouldBe empty)
 
-    matcherNode.cancelOrder(bobAcc, ethBtcPair, Some(counterId))
+    matcherNode.cancelOrder(bobAcc, ethBtcPair, counterId)
     val tx = matcherNode.transactionsByOrder(counterId).head
 
     matcherNode.waitForTransaction(tx.id)

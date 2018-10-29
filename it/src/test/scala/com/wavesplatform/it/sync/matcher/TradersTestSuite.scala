@@ -82,7 +82,7 @@ class TradersTestSuite extends MatcherSuiteBase {
 
           // Cleanup
           nodes.waitForHeightArise()
-          matcherNode.cancelOrder(bobAcc, twoAssetsPair, Some(newestOrderId)).status should be("OrderCanceled")
+          matcherNode.cancelOrder(bobAcc, twoAssetsPair, newestOrderId).status should be("OrderCanceled")
 
           val transferBackId = aliceNode.transfer(aliceAcc.address, bobAcc.address, 3050, exTxFee, Some(bobNewAsset), None, 2).id
           nodes.waitForHeightAriseAndTxPresent(transferBackId)
@@ -107,7 +107,7 @@ class TradersTestSuite extends MatcherSuiteBase {
 
           // Cleanup
           nodes.waitForHeightArise()
-          matcherNode.cancelOrder(bobAcc, twoAssetsPair, Some(newestOrderId)).status should be("OrderCanceled")
+          matcherNode.cancelOrder(bobAcc, twoAssetsPair, newestOrderId).status should be("OrderCanceled")
           val cancelLeaseId = bobNode.cancelLease(bobAcc.address, leaseId, exTxFee, 2).id
           nodes.waitForHeightAriseAndTxPresent(cancelLeaseId)
         }
@@ -131,7 +131,7 @@ class TradersTestSuite extends MatcherSuiteBase {
 
           // Cleanup
           nodes.waitForHeightArise()
-          matcherNode.cancelOrder(bobAcc, twoAssetsPair, Some(newestOrderId)).status should be("OrderCanceled")
+          matcherNode.cancelOrder(bobAcc, twoAssetsPair, newestOrderId).status should be("OrderCanceled")
           val transferBackId = aliceNode.transfer(aliceAcc.address, bobAcc.address, transferAmount, exTxFee, None, None, 2).id
           nodes.waitForHeightAriseAndTxPresent(transferBackId)
         }
@@ -159,8 +159,8 @@ class TradersTestSuite extends MatcherSuiteBase {
 
           // Cleanup
           nodes.waitForHeightArise()
-          matcherNode.cancelOrder(bobAcc, bobWavesPair, Some(newestOrderId)).status should be("OrderCanceled")
-          val cancelLeaseId = bobNode.cancelLease(bobAcc.address, leaseId, exTxFee, 2).id
+          matcherNode.cancelOrder(bobAcc, bobWavesPair, newestOrderId).status should be("OrderCanceled")
+          val cancelLeaseId = bobNode.cancelLease(bobNode.address, leaseId, exTxFee, 2).id
           nodes.waitForHeightAriseAndTxPresent(cancelLeaseId)
         }
 

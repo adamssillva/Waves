@@ -8,20 +8,21 @@ import com.wavesplatform.transaction.Proofs
 import com.wavesplatform.transaction.assets.exchange.{AssetPair, Order, OrderType}
 import org.asynchttpclient.util.HttpConstants
 import org.asynchttpclient.{RequestBuilder, Response}
-import org.scalatest.{Assertion, Assertions, Matchers}
-import play.api.libs.json.Json.parse
 import play.api.libs.json.{Format, Json, Writes}
 
 import scala.concurrent.{Await, Awaitable}
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
+import org.scalatest.{Assertion, Assertions, Matchers}
+import play.api.libs.json.Json.parse
 
-object SyncMatcherHttpApi extends Assertions {
+object SyncMatcherHttpApi {
   case class ErrorMessage(error: Int, message: String)
 
   implicit val errorMessageFormat: Format[ErrorMessage] = Json.format
 
+  implicit class MatcherNodeExtSync(m: Node) {
   case class NotFoundErrorMessage(message: String)
 
   object NotFoundErrorMessage {
@@ -54,10 +55,16 @@ object SyncMatcherHttpApi extends Assertions {
       sync(async(m).orderBook(assetPair))
 
     def marketStatus(assetPair: AssetPair): MarketStatusResponse =
-      sync(async(m).marketStatus(assetPair))
+      sync(async(m).marketStatus(assetPair), RequestAwaitTime)
 
-    def fullOrderHistory(sender: PrivateKeyAccount): Seq[OrderbookHistory] =
-      sync(async(m).fullOrdersHistory(sender))
+    def deleteOrderBook(assetPair: AssetPair): OrderBookResponse =
+      sync(async(m).deleteOrderBook(assetPair), RequestAwaitTime)
+
+    def fullOrderHistory(sender: Node): Seq[OrderbookHistory] =
+      sync(async(m).fullOrdersHistory(sender), RequestAwaitTime)
+
+    def orderHistoryByPair(sender: Node, assetPair: AssetPair, activeOnly: Boolean = false): Seq[OrderbookHistory] =
+      sync(async(m).orderHistoryByPair(sender, assetPair, activeOnly), RequestAwaitTime)
 
     def orderHistoryByPair(sender: PrivateKeyAccount, assetPair: AssetPair): Seq[OrderbookHistory] =
       sync(async(m).orderHistoryByPair(sender, assetPair))
@@ -111,15 +118,23 @@ object SyncMatcherHttpApi extends Assertions {
                                       waitTime: Duration = OrderRequestAwaitTime): Boolean =
       sync(async(m).expectIncorrectOrderPlacement(order, expectedStatusCode, expectedStatus), waitTime)
 
-    def cancelOrder(sender: PrivateKeyAccount,
-                    assetPair: AssetPair,
-                    orderId: Option[String],
-                    timestamp: Option[Long] = None,
-                    waitTime: Duration = OrderRequestAwaitTime): MatcherStatusResponse =
-      sync(async(m).cancelOrder(sender, assetPair, orderId, timestamp), waitTime)
+    def expectCancelRejected(sender: PrivateKeyAccount, assetPair: AssetPair, orderId: String, waitTime: Duration = OrderRequestAwaitTime): Unit =
+      sync(async(m).expectCancelRejected(sender, assetPair, orderId), waitTime)
 
-    def cancelAllOrders(sender: PrivateKeyAccount,
-                        timestamp: Option[Long] = None,
+    def cancelOrder(sender: Node, assetPair: AssetPair, orderId: String, waitTime: Duration = OrderRequestAwaitTime): MatcherStatusResponse =
+      cancelOrder(sender.privateKey, assetPair, orderId, waitTime)
+
+    def cancelOrder(sender: PrivateKeyAccount, assetPair: AssetPair, orderId: String, waitTime: Duration): MatcherStatusResponse =
+      sync(async(m).cancelOrder(sender, assetPair, orderId), waitTime)
+
+    def cancelOrdersForPair(sender: Node,
+                            assetPair: AssetPair,
+                            timestamp: Long = System.currentTimeMillis(),
+                            waitTime: Duration = OrderRequestAwaitTime): MatcherStatusResponse =
+      sync(async(m).cancelOrdersForPair(sender, assetPair, timestamp), waitTime)
+
+    def cancelAllOrders(sender: Node,
+                        timestamp: Long = System.currentTimeMillis(),
                         waitTime: Duration = OrderRequestAwaitTime): MatcherStatusResponse =
       sync(async(m).cancelAllOrders(sender, timestamp), waitTime)
 
